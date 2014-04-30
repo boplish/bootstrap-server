@@ -1,0 +1,21 @@
+# bootstrap server
+
+## python virtualenv stuff
+/python/bin
+/python/include
+/python/lib
+/python/local
+/python/.Python
+
+## npm stuff
+/nodejs/node_modules/
+
+## static files
+/python/static/
+/nodejs/static/
+
+# build stuff
+/node_modules/
+/dist/
+*.swp
+*~

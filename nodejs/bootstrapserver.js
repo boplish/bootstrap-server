@@ -56,8 +56,8 @@ BootstrapServer.prototype = {
                 response.write(fs.readFileSync(this._staticPath + request.url));
             }
         } catch (e) {
-            response.writeHead(404);
-            response.write('404 - Not Found');
+            response.writeHead(200);
+            response.write('<p>This is a BOPlish Bootstrap Server - <a href="//github.com/boplish">github.com/boplish</a>');
         }
         response.end();
     },

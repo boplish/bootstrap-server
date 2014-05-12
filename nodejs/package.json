@@ -1,6 +1,6 @@
 {
   "name": "BOPlish-bootstrap-server",
-  "version": "0.0.2",
+  "version": "0.0.2-2",
   "dependencies": {
     "winston": "~0.7.2",
     "websocket": "~1.0.8",
@@ -12,6 +12,11 @@
     "mocha": "~1.18.2"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha test/nodeboostrapserver-test.js"
+    "test": "./node_modules/.bin/mocha test/nodeboostrapserver-test.js",
+    "start": "run.js"
+  },
+  "subdomain": "boplish",
+  "engines": {
+    "node": "0.10.x"
   }
 }

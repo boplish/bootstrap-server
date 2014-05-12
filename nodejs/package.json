@@ -17,6 +17,6 @@
   },
   "subdomain": "boplish",
   "engines": {
-    "node": "0.10.x"
+    "node": ">=0.10.0"
   }
 }

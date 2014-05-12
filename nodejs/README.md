@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/boplish/bootstrap-server.svg?branch=master)](https://travis-ci.org/boplish/bootstrap-server)
+
 Node.js BOPlish Signaling Server
 ================================
 

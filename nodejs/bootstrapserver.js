@@ -10,7 +10,7 @@ var logger = require('winston');
  * @param port {Number} Port this server shall listen on
  */
 BootstrapServer = function(hostname, port, staticPath) {
-    if(!(this instanceof BootstrapServer)) {
+    if (!(this instanceof BootstrapServer)) {
         return new BootstrapServer();
     }
     this._hostname = hostname || 'localhost';
@@ -25,7 +25,7 @@ BootstrapServer = function(hostname, port, staticPath) {
 BootstrapServer.prototype = {
     /**
      * Start listening
-     * 
+     *
      * @param successCallback {Function} Gets called when the http server is listening
      */
     listen: function(successCallback) {
@@ -47,10 +47,10 @@ BootstrapServer.prototype = {
      */
     _onHttpRequest: function(request, response) {
         logger.info('Received HTTP request for ' + request.url);
-        
+
         try {
             response.writeHead(200);
-            if(request.url === '/') {
+            if (request.url === '/') {
                 response.write(fs.readFileSync(this._staticPath + '/index.html'));
             } else {
                 response.write(fs.readFileSync(this._staticPath + request.url));
@@ -63,17 +63,17 @@ BootstrapServer.prototype = {
     },
 
     /**
-     * Gets called when a client initiates a WebSocket connection 
+     * Gets called when a client initiates a WebSocket connection
      * to the server. Associates the initiated connection with a peerId
      * given in the initial connection URI (as 12345 in ws://localhost/ws/12345)
-     * 
+     *
      * @param request {WebSocketRequest}
      */
     _onWebSocketRequest: function(request) {
         var conn;
         var url = request.httpRequest.url;
         var peerId = url.substr(4);
-        if (!peerId || url.substr(0,4) !== '/ws/') {
+        if (!peerId || url.substr(0, 4) !== '/ws/') {
             request.reject('404', 'malformed request');
             logger.info('Discarding Request because of malformed uri ' + request.httpRequest.url);
             return;
@@ -87,36 +87,66 @@ BootstrapServer.prototype = {
 
     /**
      * Gets called whenever a peer sends a message over its websocket connection
-     * 
+     *
      * @param rawMsg {String} incoming UTF8-String containing the message
      */
     _onWebSocketMessage: function(rawMsg) {
         var msg;
         try {
             msg = JSON.parse(rawMsg.utf8Data);
+            console.log(msg);
         } catch (e) {
             logger.info('Could not parse incoming message: ' + rawMsg.utf8Data + ' ' + e);
+            return;
+        }
+        if (msg.to === 'signaling-server') {
+            console.log("message for me", msg);
+            return;
+        }
+        if (msg.to !== "*") {
+            console.log("forwarding", msg);
+            try {
+                this._users[msg.to].send(JSON.stringify(msg));
+            } catch (e) {
+                console.log("Could not forward", e);
+            }
             return;
         }
         if (typeof(msg.payload) === 'undefined' || msg.payload === null) {
             logger.info('Discarding message: ' + JSON.stringify(msg) + ' because it does not carry any payload');
             return;
         }
-        switch (msg.payload.type) {
-            case 'offer':
-                this._handleOffer(msg);
-                break;
-            case 'answer':
-                this._handleAnswer(msg);
-                break;
-            default:
-                logger.info('Discarding message: ' + JSON.stringify(msg) + ' because the type is unknown');
+        if (msg.payload.type === "signaling-protocol") {
+            switch (msg.payload.payload.type) {
+                case 'offer':
+                    this._handleOffer(msg);
+                    break;
+                case 'answer':
+                    this._handleAnswer(msg);
+                    break;
+                default:
+                    logger.info('Discarding message: ' + JSON.stringify(msg) + ' because the type is unknown');
+            }
+        }
+    },
+
+    _ack: function(msg) {
+        console.log("ACKing", msg);
+        try {
+            this._users[msg.from].send(JSON.stringify({
+                type: 'ACK',
+                seqnr: msg.seqnr,
+                to: msg.from,
+                from: 'signaling-server'
+            }));
+        } catch (e) {
+            console.log("Could not ACK", e);
         }
     },
 
     /**
-     * Forwards an offer to a connected peer via its WebSocket 
-     * connection. The peer is chosen at random if not explicitly 
+     * Forwards an offer to a connected peer via its WebSocket
+     * connection. The peer is chosen at random if not explicitly
      * set in the message's `to` field
      *
      * @param msg {Object} The message containing the offer
@@ -125,11 +155,21 @@ BootstrapServer.prototype = {
         var receiver, user, count = 0;
         if (Object.keys(this._users).length <= 1) {
             // denied (i.e. this is the first connecting peer)
+            this._ack(msg);
+            console.log('denying', msg);
             this._users[msg.from].send(JSON.stringify({
-                type: 'signaling-protocol',
+                type: 'ROUTE',
                 to: msg.from,
                 from: 'signaling-server',
-                payload: {type: 'denied'}
+                seqnr: Math.floor(Math.random() * 1000000),
+                payload: {
+                    type: 'signaling-protocol',
+                    to: msg.from,
+                    from: 'signaling-server',
+                    payload: {
+                        type: 'denied'
+                    }
+                }
             }));
             return;
         }
@@ -139,7 +179,7 @@ BootstrapServer.prototype = {
         } else if (msg.to === '*') {
             // random receiver (inital offer)
             for (user in this._users) {
-                if (Math.random() < 1/++count && user !== msg.from) {
+                if (Math.random() < 1 / ++count && user !== msg.from) {
                     logger.info('Sending offer from: ' + msg.from + ' to: ' + user);
                     msg.to = user;
                     receiver = this._users[user];
@@ -151,6 +191,7 @@ BootstrapServer.prototype = {
             return;
         }
         try {
+            console.log("sending", msg);
             receiver.send(JSON.stringify(msg));
         } catch (e) {
             logger.info('Could not send offer to ' + msg.to + ' because the WebSocket connection failed: ' + e);
@@ -158,7 +199,7 @@ BootstrapServer.prototype = {
     },
 
     /**
-     * Forwards an answer to the corresponding peer (set in the `msg.to` field 
+     * Forwards an answer to the corresponding peer (set in the `msg.to` field
      * from the client).
      *
      * @param msg {Object} The message containing the answer
@@ -168,7 +209,7 @@ BootstrapServer.prototype = {
         try {
             logger.info('Sending answer from: ' + msg.from + ' to: ' + msg.to);
             this._users[msg.to].send(JSON.stringify(msg));
-        } catch(e) {
+        } catch (e) {
             logger.info('Could not send offer to ' + msg.to + ' because the WebSocket connection failed: ' + e);
         }
     },
@@ -195,6 +236,6 @@ BootstrapServer.prototype = {
     }
 };
 
-if(typeof(module) !== 'undefined') {
+if (typeof(module) !== 'undefined') {
     module.exports = BootstrapServer;
 }

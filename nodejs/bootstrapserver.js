@@ -100,7 +100,7 @@ BootstrapServer.prototype = {
             return;
         }
         if (msg.to === 'signaling-server') {
-            console.log("message for me", msg);
+            console.log("message for me, ignoring", msg);
             return;
         }
         if (msg.to !== "*") {

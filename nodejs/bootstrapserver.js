@@ -94,26 +94,30 @@ BootstrapServer.prototype = {
         var msg;
         try {
             msg = JSON.parse(rawMsg.utf8Data);
-            console.log(msg);
         } catch (e) {
             logger.info('Could not parse incoming message: ' + rawMsg.utf8Data + ' ' + e);
             return;
         }
         if (msg.to === 'signaling-server') {
-            console.log("message for me, ignoring", msg);
+            logger.debug("message for me, ignoring", msg);
             return;
         }
         if (msg.to !== "*") {
-            console.log("forwarding", msg);
+            logger.debug("forwarding", msg);
             try {
                 this._users[msg.to].send(JSON.stringify(msg));
             } catch (e) {
-                console.log("Could not forward", e);
+                logger.info("Could not forward", e);
+                this._users[msg.from].send(JSON.stringify({
+                    type: 'ERROR',
+                    seqnr: msg.seqnr,
+                    error: "Could not forward message"
+                }));
             }
             return;
         }
         if (typeof(msg.payload) === 'undefined' || msg.payload === null) {
-            logger.info('Discarding message: ' + JSON.stringify(msg) + ' because it does not carry any payload');
+            logger.debug('Discarding message: ' + JSON.stringify(msg) + ' because it does not carry any payload');
             return;
         }
         if (msg.payload.type === "signaling-protocol") {
@@ -125,13 +129,13 @@ BootstrapServer.prototype = {
                     this._handleAnswer(msg);
                     break;
                 default:
-                    logger.info('Discarding message: ' + JSON.stringify(msg) + ' because the type is unknown');
+                    logger.debug('Discarding message: ' + JSON.stringify(msg) + ' because the type is unknown');
             }
         }
     },
 
     _ack: function(msg) {
-        console.log("ACKing", msg);
+        logger.debug("ACKing", msg);
         try {
             this._users[msg.from].send(JSON.stringify({
                 type: 'ACK',
@@ -140,7 +144,7 @@ BootstrapServer.prototype = {
                 from: 'signaling-server'
             }));
         } catch (e) {
-            console.log("Could not ACK", e);
+            logger.info("Could not ACK", e);
         }
     },
 
@@ -156,7 +160,7 @@ BootstrapServer.prototype = {
         if (Object.keys(this._users).length <= 1) {
             // denied (i.e. this is the first connecting peer)
             this._ack(msg);
-            console.log('denying', msg);
+            logger.debug('denying', msg);
             this._users[msg.from].send(JSON.stringify({
                 type: 'ROUTE',
                 to: msg.from,
@@ -180,7 +184,7 @@ BootstrapServer.prototype = {
             // random receiver (inital offer)
             for (user in this._users) {
                 if (Math.random() < 1 / ++count && user !== msg.from) {
-                    logger.info('Sending offer from: ' + msg.from + ' to: ' + user);
+                    logger.debug('Sending offer from: ' + msg.from + ' to: ' + user);
                     msg.to = user;
                     receiver = this._users[user];
                     break;
@@ -191,7 +195,7 @@ BootstrapServer.prototype = {
             return;
         }
         try {
-            console.log("sending", msg);
+            logger.debug("sending", msg);
             receiver.send(JSON.stringify(msg));
         } catch (e) {
             logger.info('Could not send offer to ' + msg.to + ' because the WebSocket connection failed: ' + e);
@@ -207,7 +211,7 @@ BootstrapServer.prototype = {
     _handleAnswer: function(msg) {
         var receiver = this._users[msg.to];
         try {
-            logger.info('Sending answer from: ' + msg.from + ' to: ' + msg.to);
+            logger.debug('Sending answer from: ' + msg.from + ' to: ' + msg.to);
             this._users[msg.to].send(JSON.stringify(msg));
         } catch (e) {
             logger.info('Could not send offer to ' + msg.to + ' because the WebSocket connection failed: ' + e);

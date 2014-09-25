@@ -11,7 +11,11 @@ var program = require('commander');
  * Module configuration
  */
 winston.remove(winston.transports.Console);
-winston.add(winston.transports.Console, {'timestamp': true, 'colorize': true});
+winston.add(winston.transports.Console, {
+    level: 'debug',
+    'timestamp': true,
+    'colorize': true
+});
 program
     .version('0.0.2')
     .option('-b, --bind <ip>', 'Bind address', String, '127.0.0.1')

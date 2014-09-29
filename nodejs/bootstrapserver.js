@@ -156,7 +156,7 @@ BootstrapServer.prototype = {
      * @param msg {Object} The message containing the offer
      */
     _handleOffer: function(msg) {
-        var receiver, user, count = 0;
+        var receiver;
         if (Object.keys(this._users).length <= 1) {
             // denied (i.e. this is the first connecting peer)
             this._ack(msg);
@@ -182,13 +182,15 @@ BootstrapServer.prototype = {
             receiver = this._users[msg.to];
         } else if (msg.to === '*') {
             // random receiver (inital offer)
-            for (user in this._users) {
-                if (Math.random() < 1 / ++count && user !== msg.from) {
-                    logger.debug('Sending offer from: ' + msg.from + ' to: ' + user);
-                    msg.to = user;
-                    receiver = this._users[user];
+            while(true) {
+                 var keys = Object.keys(this._users);
+                 var candidate = keys[keys.length * Math.random() << 0];
+                 if (candidate !== msg.from) {
+                    logger.debug('Sending offer from: ' + msg.from + ' to: ' + candidate);
+                    msg.to = candidate;
+                    receiver = this._users[candidate];
                     break;
-                }
+                 }
             }
         } else {
             logger.info((new Date()) + ' Could not handle offer because the message is malformed');

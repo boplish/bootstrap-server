@@ -170,6 +170,7 @@ BootstrapServer.prototype = {
                     type: 'signaling-protocol',
                     to: msg.from,
                     from: 'signaling-server',
+                    seqnr: msg.payload.seqnr,
                     payload: {
                         type: 'denied'
                     }
@@ -182,15 +183,15 @@ BootstrapServer.prototype = {
             receiver = this._users[msg.to];
         } else if (msg.to === '*') {
             // random receiver (inital offer)
-            while(true) {
-                 var keys = Object.keys(this._users);
-                 var candidate = keys[keys.length * Math.random() << 0];
-                 if (candidate !== msg.from) {
+            while (true) {
+                var keys = Object.keys(this._users);
+                var candidate = keys[keys.length * Math.random() << 0];
+                if (candidate !== msg.from) {
                     logger.debug('Sending offer from: ' + msg.from + ' to: ' + candidate);
                     msg.to = candidate;
                     receiver = this._users[candidate];
                     break;
-                 }
+                }
             }
         } else {
             logger.info((new Date()) + ' Could not handle offer because the message is malformed');

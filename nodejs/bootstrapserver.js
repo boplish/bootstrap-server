@@ -19,6 +19,9 @@ BootstrapServer = function(hostname, port, staticPath) {
     this._users = {};
     this._httpServer = null;
     this._websocketServer = null;
+    this._rttStream = fs.createWriteStream("rtt.dat", {
+        flags: 'a'
+    });
     return this;
 };
 
@@ -72,7 +75,12 @@ BootstrapServer.prototype = {
     _onWebSocketRequest: function(request) {
         var conn;
         var url = request.httpRequest.url;
-        var peerId = url.substr(4);
+        var peerId;
+        if (url.substr(0, 13) === '/rttcollector') {
+            this._onRTTCollectorRequest(request);
+            return;
+        }
+        peerId = url.substr(4);
         if (!peerId || url.substr(0, 4) !== '/ws/') {
             request.reject('404', 'malformed request');
             logger.info('Discarding Request because of malformed uri ' + request.httpRequest.url);
@@ -83,6 +91,15 @@ BootstrapServer.prototype = {
         conn.on('close', this._onWebSocketClose.bind(this, peerId));
         conn.on('message', this._onWebSocketMessage.bind(this));
         this._users[peerId] = conn;
+    },
+
+    _onRTTCollectorRequest: function(request) {
+        var conn;
+        logger.info('Received WS RTT collector request');
+        conn = request.accept(null, request.origin);
+        conn.on('message', function(msg) {
+            this._rttStream.write(msg.utf8Data + "\n", 'utf-8');
+        }.bind(this));
     },
 
     /**
